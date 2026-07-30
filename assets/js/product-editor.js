@@ -1,104 +1,230 @@
 console.log("Native AI JS Loaded");
 
 document.addEventListener("DOMContentLoaded", function () {
-  const button = document.getElementById("nea-generate-description");
+  /*
+    |--------------------------------------------------------------------------
+    | Description Elements
+    |--------------------------------------------------------------------------
+    */
 
-  if (!button) {
-    console.log("Button Not Found");
-    return;
+  const descriptionButton = document.getElementById("nea-generate-description");
+
+  const descriptionModal = document.getElementById("nea-description-modal");
+
+  const cancelDescriptionButton = document.getElementById(
+    "nea-cancel-description",
+  );
+
+  const confirmDescriptionButton = document.getElementById(
+    "nea-confirm-description",
+  );
+
+  /*
+    |--------------------------------------------------------------------------
+    | FAQ Elements
+    |--------------------------------------------------------------------------
+    */
+
+  const faqButton = document.getElementById("nea-generate-faq");
+
+  /*
+    |--------------------------------------------------------------------------
+    | Open Description Modal
+    |--------------------------------------------------------------------------
+    */
+
+  if (descriptionButton) {
+    descriptionButton.addEventListener("click", function () {
+      descriptionModal.style.display = "block";
+    });
   }
 
-  console.log("Button Found");
+  /*
+    |--------------------------------------------------------------------------
+    | Close Description Modal
+    |--------------------------------------------------------------------------
+    */
 
-  button.addEventListener("click", async function () {
-    console.log("Button Clicked");
+  if (cancelDescriptionButton) {
+    cancelDescriptionButton.addEventListener("click", function () {
+      descriptionModal.style.display = "none";
+    });
+  }
 
-    try {
-      const titleField = document.getElementById("title");
+  /*
+    |--------------------------------------------------------------------------
+    | Generate Description
+    |--------------------------------------------------------------------------
+    */
 
-      const productTitle = titleField ? titleField.value : "";
+  if (confirmDescriptionButton) {
+    confirmDescriptionButton.addEventListener("click", async function () {
+      try {
+        const titleField = document.getElementById("title");
 
-      if (!productTitle) {
-        alert("Product title missing");
+        const productTitle = titleField ? titleField.value : "";
 
-        return;
-      }
+        if (!productTitle) {
+          alert("Product title missing");
 
-      button.disabled = true;
-
-      button.innerText = "Generating...";
-
-      const response = await fetch(ajaxurl, {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-
-        body: new URLSearchParams({
-          action: "nea_generate_description",
-
-          product_title: productTitle,
-        }),
-      });
-
-      const data = await response.json();
-
-      console.log("AI Response:", data);
-
-      if (!data.success) {
-        alert("AI generation failed");
-
-        return;
-      }
-
-      const description = data.data.description;
-
-      if (!description) {
-        alert("No description generated");
-
-        return;
-      }
-
-      console.log("Generated Description:", description);
-
-      /*
-       * Update WordPress Description Editor
-       */
-
-      const editorField = document.getElementById("content");
-
-      if (editorField) {
-        editorField.value = description;
-
-        console.log("Editor Updated");
-      }
-
-      /*
-       * Sync Visual Editor
-       */
-
-      if (typeof tinymce !== "undefined") {
-        const editor = tinymce.get("content");
-
-        if (editor) {
-          editor.setContent(description);
-
-          editor.save();
-
-          console.log("Visual Editor Synced");
+          return;
         }
+
+        const productContext = document.getElementById(
+          "nea-product-context",
+        ).value;
+
+        const benefits = document.getElementById("nea-benefits").value;
+
+        const tone = document.getElementById("nea-tone").value;
+
+        const length = document.getElementById("nea-length").value;
+
+        confirmDescriptionButton.disabled = true;
+
+        confirmDescriptionButton.innerText = "Generating...";
+
+        const response = await fetch(ajaxurl, {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+
+          body: new URLSearchParams({
+            action: "nea_generate_description",
+
+            product_title: productTitle,
+
+            product_context: productContext,
+
+            benefits: benefits,
+
+            tone: tone,
+
+            length: length,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+          alert("AI generation failed");
+
+          return;
+        }
+
+        const description = data.data.description;
+
+        if (!description) {
+          alert("No description generated");
+
+          return;
+        }
+
+        const editorField = document.getElementById("content");
+
+        if (editorField) {
+          editorField.value = description;
+        }
+
+        if (typeof tinymce !== "undefined") {
+          const editor = tinymce.get("content");
+
+          if (editor) {
+            editor.setContent(description);
+
+            editor.save();
+          }
+        }
+
+        descriptionModal.style.display = "none";
+
+        alert("Description Generated Successfully");
+      } catch (error) {
+        console.error(error);
+
+        alert(error.message);
+      } finally {
+        confirmDescriptionButton.disabled = false;
+
+        confirmDescriptionButton.innerText = "Generate Description";
       }
+    });
+  }
 
-      alert("Description Generated Successfully");
-    } catch (error) {
-      console.error(error);
+  /*
+    ==============================================================
+    ======= PART 2 STARTS FROM HERE ===============================
+    ==============================================================
+    */
+  /*
+    |--------------------------------------------------------------------------
+    | FAQ Elements
+    |--------------------------------------------------------------------------
+    */
 
-      alert(error.message);
-    } finally {
-      button.disabled = false;
+  const faqModal = document.getElementById("nea-faq-modal");
 
-      button.innerText = "Generate Description";
-    }
+  const cancelFaqButton = document.getElementById("nea-cancel-faq");
+
+  const confirmFaqButton = document.getElementById("nea-confirm-faq");
+
+  const faqModes = document.querySelectorAll('input[name="nea-faq-mode"]');
+
+  const customQuestions = document.getElementById("nea-custom-questions");
+
+  /*
+    |--------------------------------------------------------------------------
+    | Open FAQ Modal
+    |--------------------------------------------------------------------------
+    */
+
+  if (faqButton) {
+    faqButton.addEventListener("click", function () {
+      faqModal.style.display = "block";
+    });
+  }
+
+  /*
+    |--------------------------------------------------------------------------
+    | Close FAQ Modal
+    |--------------------------------------------------------------------------
+    */
+
+  if (cancelFaqButton) {
+    cancelFaqButton.addEventListener("click", function () {
+      faqModal.style.display = "none";
+    });
+  }
+
+  /*
+    |--------------------------------------------------------------------------
+    | FAQ Mode Toggle
+    |--------------------------------------------------------------------------
+    */
+
+  faqModes.forEach(function (radio) {
+    radio.addEventListener("change", function () {
+      if (this.value === "custom") {
+        customQuestions.style.display = "block";
+      } else {
+        customQuestions.style.display = "none";
+      }
+    });
   });
+
+  /*
+    |--------------------------------------------------------------------------
+    | Generate FAQ
+    |--------------------------------------------------------------------------
+    */
+
+  if (confirmFaqButton) {
+    confirmFaqButton.addEventListener("click", function () {
+      alert("FAQ Generate Button Clicked");
+
+      faqModal.style.display = "none";
+    });
+  }
 });
