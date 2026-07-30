@@ -2,10 +2,10 @@ console.log("Native AI JS Loaded");
 
 document.addEventListener("DOMContentLoaded", function () {
   /*
-    |--------------------------------------------------------------------------
-    | Description Elements
-    |--------------------------------------------------------------------------
-    */
+  |--------------------------------------------------------------------------
+  | Description Elements
+  |--------------------------------------------------------------------------
+  */
 
   const descriptionButton = document.getElementById("nea-generate-description");
 
@@ -20,18 +20,18 @@ document.addEventListener("DOMContentLoaded", function () {
   );
 
   /*
-    |--------------------------------------------------------------------------
-    | FAQ Elements
-    |--------------------------------------------------------------------------
-    */
+  |--------------------------------------------------------------------------
+  | FAQ Button
+  |--------------------------------------------------------------------------
+  */
 
   const faqButton = document.getElementById("nea-generate-faq");
 
   /*
-    |--------------------------------------------------------------------------
-    | Open Description Modal
-    |--------------------------------------------------------------------------
-    */
+  |--------------------------------------------------------------------------
+  | Open Description Modal
+  |--------------------------------------------------------------------------
+  */
 
   if (descriptionButton) {
     descriptionButton.addEventListener("click", function () {
@@ -40,10 +40,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /*
-    |--------------------------------------------------------------------------
-    | Close Description Modal
-    |--------------------------------------------------------------------------
-    */
+  |--------------------------------------------------------------------------
+  | Close Description Modal
+  |--------------------------------------------------------------------------
+  */
 
   if (cancelDescriptionButton) {
     cancelDescriptionButton.addEventListener("click", function () {
@@ -52,10 +52,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /*
-    |--------------------------------------------------------------------------
-    | Generate Description
-    |--------------------------------------------------------------------------
-    */
+  |--------------------------------------------------------------------------
+  | Generate Description
+  |--------------------------------------------------------------------------
+  */
 
   if (confirmDescriptionButton) {
     confirmDescriptionButton.addEventListener("click", async function () {
@@ -116,12 +116,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const description = data.data.description;
 
-        if (!description) {
-          alert("No description generated");
-
-          return;
-        }
-
         const editorField = document.getElementById("content");
 
         if (editorField) {
@@ -154,15 +148,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /*
-    ==============================================================
-    ======= PART 2 STARTS FROM HERE ===============================
-    ==============================================================
-    */
-  /*
-    |--------------------------------------------------------------------------
-    | FAQ Elements
-    |--------------------------------------------------------------------------
-    */
+  |--------------------------------------------------------------------------
+  | FAQ Elements
+  |--------------------------------------------------------------------------
+  */
 
   const faqModal = document.getElementById("nea-faq-modal");
 
@@ -175,10 +164,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const customQuestions = document.getElementById("nea-custom-questions");
 
   /*
-    |--------------------------------------------------------------------------
-    | Open FAQ Modal
-    |--------------------------------------------------------------------------
-    */
+  |--------------------------------------------------------------------------
+  | Open FAQ Modal
+  |--------------------------------------------------------------------------
+  */
 
   if (faqButton) {
     faqButton.addEventListener("click", function () {
@@ -187,10 +176,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /*
-    |--------------------------------------------------------------------------
-    | Close FAQ Modal
-    |--------------------------------------------------------------------------
-    */
+  |--------------------------------------------------------------------------
+  | Close FAQ Modal
+  |--------------------------------------------------------------------------
+  */
 
   if (cancelFaqButton) {
     cancelFaqButton.addEventListener("click", function () {
@@ -199,10 +188,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /*
-    |--------------------------------------------------------------------------
-    | FAQ Mode Toggle
-    |--------------------------------------------------------------------------
-    */
+  |--------------------------------------------------------------------------
+  | FAQ Mode Toggle
+  |--------------------------------------------------------------------------
+  */
 
   faqModes.forEach(function (radio) {
     radio.addEventListener("change", function () {
@@ -215,16 +204,102 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   /*
-    |--------------------------------------------------------------------------
-    | Generate FAQ
-    |--------------------------------------------------------------------------
-    */
+  |--------------------------------------------------------------------------
+  | Generate FAQ
+  |--------------------------------------------------------------------------
+  */
 
   if (confirmFaqButton) {
-    confirmFaqButton.addEventListener("click", function () {
-      alert("FAQ Generate Button Clicked");
+    confirmFaqButton.addEventListener("click", async function () {
+      try {
+        const titleField = document.getElementById("title");
 
-      faqModal.style.display = "none";
+        const productTitle = titleField ? titleField.value : "";
+
+        if (!productTitle) {
+          alert("Product title missing");
+
+          return;
+        }
+
+        const productInfo = document.getElementById(
+          "nea-faq-product-info",
+        ).value;
+
+        const faqMode = document.querySelector(
+          'input[name="nea-faq-mode"]:checked',
+        ).value;
+
+        let customQuestions = "";
+
+        if (faqMode === "custom") {
+          let questions = [];
+
+          for (let i = 1; i <= 5; i++) {
+            const field = document.getElementById("nea-question-" + i);
+
+            if (field && field.value.trim()) {
+              questions.push(field.value.trim());
+            }
+          }
+
+          customQuestions = questions.join("\n");
+        }
+
+        confirmFaqButton.disabled = true;
+
+        confirmFaqButton.innerText = "Generating...";
+
+        const response = await fetch(ajaxurl, {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+
+          body: new URLSearchParams({
+            action: "nea_generate_faq",
+
+            product_title: productTitle,
+
+            product_info: productInfo,
+
+            faq_mode: faqMode,
+
+            custom_questions: customQuestions,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+          alert("FAQ generation failed");
+
+          return;
+        }
+
+        const faq = data.data.faq;
+
+        const preview = document.getElementById("nea-faq-preview");
+
+        if (preview) {
+          preview.style.display = "block";
+
+          preview.innerText = faq;
+        }
+
+        faqModal.style.display = "none";
+
+        alert("FAQ Generated Successfully");
+      } catch (error) {
+        console.error(error);
+
+        alert(error.message);
+      } finally {
+        confirmFaqButton.disabled = false;
+
+        confirmFaqButton.innerText = "Generate FAQ";
+      }
     });
   }
 });
