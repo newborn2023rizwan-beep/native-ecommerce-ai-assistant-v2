@@ -3,7 +3,7 @@ console.log("Native AI JS Loaded");
 document.addEventListener("DOMContentLoaded", function () {
   /*
   |--------------------------------------------------------------------------
-  | Description Elements
+  | DESCRIPTION ELEMENTS
   |--------------------------------------------------------------------------
   */
 
@@ -19,33 +19,47 @@ document.addEventListener("DOMContentLoaded", function () {
     "nea-confirm-description",
   );
 
+  const hiddenDescription = document.getElementById("nea-ai-description");
+
   /*
   |--------------------------------------------------------------------------
-  | FAQ Button
+  | FAQ ELEMENTS
   |--------------------------------------------------------------------------
   */
 
   const faqButton = document.getElementById("nea-generate-faq");
 
+  const faqOutput = document.getElementById("nea-faq-output");
+
+  const faqContent = document.getElementById("nea-faq-content");
+
+  const faqModal = document.getElementById("nea-faq-modal");
+
+  const cancelFaqButton = document.getElementById("nea-cancel-faq");
+
+  const confirmFaqButton = document.getElementById("nea-confirm-faq");
+
+  const faqField = document.getElementById("nea-ai-faq");
+
+  const faqModes = document.querySelectorAll('input[name="nea-faq-mode"]');
+
+  const customQuestionsContainer = document.getElementById(
+    "nea-custom-questions",
+  );
+
   /*
   |--------------------------------------------------------------------------
-  | Open Description Modal
+  | DESCRIPTION MODAL
   |--------------------------------------------------------------------------
   */
 
-  if (descriptionButton) {
+  if (descriptionButton && descriptionModal) {
     descriptionButton.addEventListener("click", function () {
       descriptionModal.style.display = "block";
     });
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Close Description Modal
-  |--------------------------------------------------------------------------
-  */
-
-  if (cancelDescriptionButton) {
+  if (cancelDescriptionButton && descriptionModal) {
     cancelDescriptionButton.addEventListener("click", function () {
       descriptionModal.style.display = "none";
     });
@@ -53,7 +67,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   /*
   |--------------------------------------------------------------------------
-  | Generate Description
+  | GENERATE DESCRIPTION
   |--------------------------------------------------------------------------
   */
 
@@ -62,23 +76,32 @@ document.addEventListener("DOMContentLoaded", function () {
       try {
         const titleField = document.getElementById("title");
 
-        const productTitle = titleField ? titleField.value : "";
+        const productTitle = titleField ? titleField.value.trim() : "";
 
         if (!productTitle) {
           alert("Product title missing");
-
           return;
         }
 
-        const productContext = document.getElementById(
+        const productContextField = document.getElementById(
           "nea-product-context",
-        ).value;
+        );
 
-        const benefits = document.getElementById("nea-benefits").value;
+        const benefitsField = document.getElementById("nea-benefits");
 
-        const tone = document.getElementById("nea-tone").value;
+        const toneField = document.getElementById("nea-tone");
 
-        const length = document.getElementById("nea-length").value;
+        const lengthField = document.getElementById("nea-length");
+
+        const productContext = productContextField
+          ? productContextField.value
+          : "";
+
+        const benefits = benefitsField ? benefitsField.value : "";
+
+        const tone = toneField ? toneField.value : "";
+
+        const length = lengthField ? lengthField.value : "";
 
         confirmDescriptionButton.disabled = true;
 
@@ -93,15 +116,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
           body: new URLSearchParams({
             action: "nea_generate_description",
-
             product_title: productTitle,
-
             product_context: productContext,
-
             benefits: benefits,
-
             tone: tone,
-
             length: length,
           }),
         });
@@ -110,11 +128,31 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (!data.success) {
           alert("AI generation failed");
-
           return;
         }
 
         const description = data.data.description;
+
+        if (!description) {
+          alert("No description generated");
+          return;
+        }
+
+        /*
+          |--------------------------------------------------------------------------
+          | Update Hidden Description Field
+          |--------------------------------------------------------------------------
+          */
+
+        if (hiddenDescription) {
+          hiddenDescription.value = description;
+        }
+
+        /*
+          |--------------------------------------------------------------------------
+          | Update WooCommerce Description Editor
+          |--------------------------------------------------------------------------
+          */
 
         const editorField = document.getElementById("content");
 
@@ -127,12 +165,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
           if (editor) {
             editor.setContent(description);
-
             editor.save();
           }
         }
 
-        descriptionModal.style.display = "none";
+        /*
+          |--------------------------------------------------------------------------
+          | Close Modal
+          |--------------------------------------------------------------------------
+          */
+
+        if (descriptionModal) {
+          descriptionModal.style.display = "none";
+        }
 
         alert("Description Generated Successfully");
       } catch (error) {
@@ -149,39 +194,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
   /*
   |--------------------------------------------------------------------------
-  | FAQ Elements
+  | FAQ MODAL
   |--------------------------------------------------------------------------
   */
 
-  const faqModal = document.getElementById("nea-faq-modal");
-
-  const cancelFaqButton = document.getElementById("nea-cancel-faq");
-
-  const confirmFaqButton = document.getElementById("nea-confirm-faq");
-
-  const faqModes = document.querySelectorAll('input[name="nea-faq-mode"]');
-
-  const customQuestions = document.getElementById("nea-custom-questions");
-
-  /*
-  |--------------------------------------------------------------------------
-  | Open FAQ Modal
-  |--------------------------------------------------------------------------
-  */
-
-  if (faqButton) {
+  if (faqButton && faqModal) {
     faqButton.addEventListener("click", function () {
       faqModal.style.display = "block";
     });
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Close FAQ Modal
-  |--------------------------------------------------------------------------
-  */
-
-  if (cancelFaqButton) {
+  if (cancelFaqButton && faqModal) {
     cancelFaqButton.addEventListener("click", function () {
       faqModal.style.display = "none";
     });
@@ -189,23 +212,74 @@ document.addEventListener("DOMContentLoaded", function () {
 
   /*
   |--------------------------------------------------------------------------
-  | FAQ Mode Toggle
+  | FAQ MODE SWITCH
   |--------------------------------------------------------------------------
   */
 
   faqModes.forEach(function (radio) {
     radio.addEventListener("change", function () {
+      if (!customQuestionsContainer) {
+        return;
+      }
+
       if (this.value === "custom") {
-        customQuestions.style.display = "block";
+        customQuestionsContainer.style.display = "block";
       } else {
-        customQuestions.style.display = "none";
+        customQuestionsContainer.style.display = "none";
       }
     });
   });
 
   /*
   |--------------------------------------------------------------------------
-  | Generate FAQ
+  | SYNC FAQ EDITOR → HIDDEN FIELD
+  |--------------------------------------------------------------------------
+  |
+  | The visible FAQ content is editable.
+  | Before saving the product, its HTML is copied into
+  | the real hidden field named nea_ai_faq.
+  |
+  */
+
+  function syncFaqField() {
+    if (!faqField || !faqContent) {
+      return;
+    }
+
+    faqField.value = faqContent.innerHTML;
+
+    faqField.dispatchEvent(
+      new Event("input", {
+        bubbles: true,
+      }),
+    );
+
+    faqField.dispatchEvent(
+      new Event("change", {
+        bubbles: true,
+      }),
+    );
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | FAQ CONTENT EDITING
+  |--------------------------------------------------------------------------
+  */
+
+  if (faqContent) {
+    faqContent.addEventListener("input", function () {
+      syncFaqField();
+    });
+
+    faqContent.addEventListener("blur", function () {
+      syncFaqField();
+    });
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | GENERATE FAQ
   |--------------------------------------------------------------------------
   */
 
@@ -214,41 +288,66 @@ document.addEventListener("DOMContentLoaded", function () {
       try {
         const titleField = document.getElementById("title");
 
-        const productTitle = titleField ? titleField.value : "";
+        const productTitle = titleField ? titleField.value.trim() : "";
 
         if (!productTitle) {
           alert("Product title missing");
-
           return;
         }
 
-        const productInfo = document.getElementById(
+        const productInfoField = document.getElementById(
           "nea-faq-product-info",
-        ).value;
+        );
 
-        const faqMode = document.querySelector(
+        const productInfo = productInfoField ? productInfoField.value : "";
+
+        const selectedMode = document.querySelector(
           'input[name="nea-faq-mode"]:checked',
-        ).value;
+        );
 
-        let customQuestions = "";
+        const faqMode = selectedMode ? selectedMode.value : "auto";
+
+        /*
+          |--------------------------------------------------------------------------
+          | Collect Custom Questions
+          |--------------------------------------------------------------------------
+          */
+
+        let customQuestions = [];
 
         if (faqMode === "custom") {
-          let questions = [];
-
           for (let i = 1; i <= 5; i++) {
-            const field = document.getElementById("nea-question-" + i);
+            const questionField = document.getElementById(`nea-question-${i}`);
 
-            if (field && field.value.trim()) {
-              questions.push(field.value.trim());
+            const question = questionField ? questionField.value.trim() : "";
+
+            if (question !== "") {
+              customQuestions.push(question);
             }
           }
 
-          customQuestions = questions.join("\n");
+          if (customQuestions.length === 0) {
+            alert("Please enter at least one custom question.");
+
+            return;
+          }
         }
+
+        /*
+          |--------------------------------------------------------------------------
+          | Disable Button
+          |--------------------------------------------------------------------------
+          */
 
         confirmFaqButton.disabled = true;
 
         confirmFaqButton.innerText = "Generating...";
+
+        /*
+          |--------------------------------------------------------------------------
+          | AJAX Request
+          |--------------------------------------------------------------------------
+          */
 
         const response = await fetch(ajaxurl, {
           method: "POST",
@@ -259,36 +358,81 @@ document.addEventListener("DOMContentLoaded", function () {
 
           body: new URLSearchParams({
             action: "nea_generate_faq",
-
             product_title: productTitle,
-
             product_info: productInfo,
-
             faq_mode: faqMode,
-
-            custom_questions: customQuestions,
+            custom_questions: customQuestions.join("\n"),
           }),
         });
 
         const data = await response.json();
 
-        if (!data.success) {
-          alert("FAQ generation failed");
+        /*
+          |--------------------------------------------------------------------------
+          | AJAX Error
+          |--------------------------------------------------------------------------
+          */
 
+        if (!data.success) {
+          alert("AI generation failed");
           return;
         }
 
+        /*
+          |--------------------------------------------------------------------------
+          | Get FAQ
+          |--------------------------------------------------------------------------
+          */
+
         const faq = data.data.faq;
 
-        const preview = document.getElementById("nea-faq-preview");
-
-        if (preview) {
-          preview.style.display = "block";
-
-          preview.innerText = faq;
+        if (!faq) {
+          alert("No FAQ generated");
+          return;
         }
 
-        faqModal.style.display = "none";
+        /*
+          |--------------------------------------------------------------------------
+          | Put Generated FAQ Into Visible Editable Area
+          |--------------------------------------------------------------------------
+          |
+          | IMPORTANT:
+          | Do NOT replace faqOutput.innerHTML because that would
+          | destroy the contenteditable element itself.
+          |
+          */
+
+        if (faqContent) {
+          faqContent.innerHTML = faq;
+        }
+
+        /*
+          |--------------------------------------------------------------------------
+          | Show FAQ Output
+          |--------------------------------------------------------------------------
+          */
+
+        if (faqOutput) {
+          faqOutput.style.display = "block";
+        }
+
+        /*
+          |--------------------------------------------------------------------------
+          | Sync Generated FAQ Into Hidden Field
+          |--------------------------------------------------------------------------
+          */
+
+        syncFaqField();
+
+        /*
+          |--------------------------------------------------------------------------
+          | Close FAQ Modal
+          |--------------------------------------------------------------------------
+          */
+
+        if (faqModal) {
+          faqModal.style.display = "none";
+        }
 
         alert("FAQ Generated Successfully");
       } catch (error) {
@@ -300,6 +444,42 @@ document.addEventListener("DOMContentLoaded", function () {
 
         confirmFaqButton.innerText = "Generate FAQ";
       }
+    });
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | SAVE BEFORE PRODUCT UPDATE
+  |--------------------------------------------------------------------------
+  */
+
+  const productForm = document.getElementById("post");
+
+  if (productForm) {
+    productForm.addEventListener("submit", function () {
+      /*
+        |--------------------------------------------------------------------------
+        | Save WooCommerce Description Editor
+        |--------------------------------------------------------------------------
+        */
+
+      if (typeof tinymce !== "undefined") {
+        const editor = tinymce.get("content");
+
+        if (editor && hiddenDescription) {
+          editor.save();
+
+          hiddenDescription.value = editor.getContent();
+        }
+      }
+
+      /*
+        |--------------------------------------------------------------------------
+        | Save Editable FAQ
+        |--------------------------------------------------------------------------
+        */
+
+      syncFaqField();
     });
   }
 });

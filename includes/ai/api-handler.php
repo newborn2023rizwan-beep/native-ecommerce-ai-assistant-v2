@@ -50,7 +50,9 @@ function nea_generate_ai_description(
     if (is_wp_error($response)) {
 
         return '<p><strong>'
-            . esc_html($response->get_error_message())
+            . esc_html(
+                $response->get_error_message()
+            )
             . '</strong></p>';
     }
 
@@ -73,7 +75,88 @@ function nea_generate_ai_description(
     |--------------------------------------------------------------------------
     */
 
-    return nea_parse_openai_response($body);
+    $description = nea_parse_openai_response($body);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Remove Duplicate Product Title
+    |--------------------------------------------------------------------------
+    |
+    | WooCommerce already displays the product title separately.
+    | Therefore the AI Description must not contain the same title
+    | as its first line/heading.
+    |
+    */
+
+    if (!empty($description)) {
+
+        $clean_title = trim(
+            wp_strip_all_tags(
+                $product_title
+            )
+        );
+
+        $clean_description = trim(
+            $description
+        );
+
+
+        /*
+        |----------------------------------------------------------------------
+        | Remove HTML heading containing the exact product title
+        |----------------------------------------------------------------------
+        */
+
+        $clean_description = preg_replace(
+            '/^\s*<(h[1-6])[^>]*>\s*'
+                . preg_quote($clean_title, '/')
+                . '\s*<\/\1>\s*/iu',
+            '',
+            $clean_description,
+            1
+        );
+
+
+        /*
+        |----------------------------------------------------------------------
+        | Remove plain-text product title from the beginning
+        |----------------------------------------------------------------------
+        */
+
+        $clean_description = preg_replace(
+            '/^\s*'
+                . preg_quote($clean_title, '/')
+                . '\s*(?:<br\s*\/?>|\r?\n|\r|:|-)?\s*/iu',
+            '',
+            $clean_description,
+            1
+        );
+
+
+        /*
+        |----------------------------------------------------------------------
+        | Remove Markdown heading containing the exact product title
+        |----------------------------------------------------------------------
+        */
+
+        $clean_description = preg_replace(
+            '/^\s*#+\s*'
+                . preg_quote($clean_title, '/')
+                . '\s*(?:\r?\n|\r)+/iu',
+            '',
+            $clean_description,
+            1
+        );
+
+
+        $description = trim(
+            $clean_description
+        );
+    }
+
+
+    return $description;
 }
 
 
@@ -121,7 +204,9 @@ function nea_generate_ai_faq(
     if (is_wp_error($response)) {
 
         return '<p><strong>'
-            . esc_html($response->get_error_message())
+            . esc_html(
+                $response->get_error_message()
+            )
             . '</strong></p>';
     }
 
