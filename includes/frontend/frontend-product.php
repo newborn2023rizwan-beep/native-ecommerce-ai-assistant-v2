@@ -9,10 +9,6 @@ if (!defined('ABSPATH')) {
 |--------------------------------------------------------------------------
 | Add FAQ To WooCommerce Description Tab
 |--------------------------------------------------------------------------
-|
-| FAQ is rendered directly after the normal WooCommerce
-| long description.
-|
 */
 
 add_filter(
@@ -43,7 +39,7 @@ function nea_render_description_with_faq($key, $tab)
 {
     /*
     |--------------------------------------------------------------------------
-    | Render Normal WooCommerce Long Description
+    | Normal WooCommerce Long Description
     |--------------------------------------------------------------------------
     */
 
@@ -52,7 +48,7 @@ function nea_render_description_with_faq($key, $tab)
 
     /*
     |--------------------------------------------------------------------------
-    | Render FAQ Immediately After Long Description
+    | FAQ Immediately After Long Description
     |--------------------------------------------------------------------------
     */
 
@@ -94,34 +90,45 @@ function nea_render_frontend_ai_faq()
 
     /*
     |--------------------------------------------------------------------------
-    | Parse Question / Answer Blocks
+    | Prepare FAQ
     |--------------------------------------------------------------------------
     |
-    | Expected format:
+    | The FAQ is saved from:
     |
-    | Question: ...
-    | Answer: ...
+    | faqContent.innerHTML
     |
-    | Question: ...
-    | Answer: ...
+    | Therefore the saved value may contain:
+    |
+    | <div>Question</div>
+    | <div>Answer</div>
+    |
+    | or:
+    |
+    | <p>Question</p>
+    | <p>Answer</p>
+    |
+    | We convert the saved HTML into clean text blocks first.
     |
     */
 
-    preg_match_all(
-        '/Question\s*:\s*(.*?)\s*Answer\s*:\s*(.*?)(?=\s*Question\s*:|$)/is',
-        $faq,
-        $matches,
-        PREG_SET_ORDER
-    );
+    $faq_html = wp_unslash($faq);
 
 
     /*
     |--------------------------------------------------------------------------
-    | Build FAQ Items
+    | 1. Try Explicit Question: / Answer: Format
     |--------------------------------------------------------------------------
     */
 
     $faq_items = array();
+
+    preg_match_all(
+        '/Question\s*:\s*(.*?)\s*Answer\s*:\s*(.*?)(?=\s*Question\s*:|$)/is',
+        wp_strip_all_tags($faq_html),
+        $matches,
+        PREG_SET_ORDER
+    );
+
 
     if (!empty($matches)) {
 
@@ -131,8 +138,8 @@ function nea_render_frontend_ai_faq()
             $answer   = trim($match[2]);
 
             if (
-                empty($question) ||
-                empty($answer)
+                $question === '' ||
+                $answer === ''
             ) {
                 continue;
             }
@@ -147,107 +154,231 @@ function nea_render_frontend_ai_faq()
 
     /*
     |--------------------------------------------------------------------------
-    | If Parser Fails
+    | 2. Parse HTML Block Format
     |--------------------------------------------------------------------------
     |
-    | Do not completely hide the saved FAQ.
+    | Current AI output is commonly saved as HTML through:
+    |
+    | faqContent.innerHTML
     |
     */
 
     if (empty($faq_items)) {
 
-        echo '<section class="nea-ai-faq">';
+        /*
+        |--------------------------------------------------------------------------
+        | Replace Block-Level HTML Elements With New Lines
+        |--------------------------------------------------------------------------
+        */
 
-        echo '<h2 class="nea-ai-faq-title">';
-        echo 'Frequently Asked Questions';
-        echo '</h2>';
-
-        echo '<div class="nea-ai-faq-list">';
-
-        echo wp_kses_post(
-            wpautop($faq)
+        $faq_text = preg_replace(
+            '/<(br\s*\/?|\/p|\/div|\/li|\/h[1-6])\s*>/i',
+            "\n",
+            $faq_html
         );
 
-        echo '</div>';
 
-        echo '</section>';
+        /*
+        |--------------------------------------------------------------------------
+        | Remove Remaining HTML Tags
+        |--------------------------------------------------------------------------
+        */
 
+        $faq_text = wp_strip_all_tags(
+            $faq_text
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Decode HTML Entities
+        |--------------------------------------------------------------------------
+        */
+
+        $faq_text = html_entity_decode(
+            $faq_text,
+            ENT_QUOTES,
+            'UTF-8'
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Normalize Whitespace
+        |--------------------------------------------------------------------------
+        */
+
+        $faq_text = str_replace(
+            array(
+                "\r\n",
+                "\r"
+            ),
+            "\n",
+            $faq_text
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Remove Empty Lines At Beginning / End
+        |--------------------------------------------------------------------------
+        */
+
+        $faq_text = trim(
+            $faq_text
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Split Into Lines
+        |--------------------------------------------------------------------------
+        */
+
+        $lines = preg_split(
+            "/\n+/",
+            $faq_text
+        );
+
+
+        $clean_lines = array();
+
+
+        foreach ($lines as $line) {
+
+            $line = trim($line);
+
+            if ($line === '') {
+                continue;
+            }
+
+            $clean_lines[] = $line;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Build Question / Answer Pairs
+        |--------------------------------------------------------------------------
+        |
+        | Expected:
+        |
+        | line 0 = Question
+        | line 1 = Answer
+        | line 2 = Question
+        | line 3 = Answer
+        |
+        */
+
+        $line_count = count($clean_lines);
+
+        for (
+            $i = 0;
+            $i + 1 < $line_count;
+            $i += 2
+        ) {
+
+            $question = trim(
+                $clean_lines[$i]
+            );
+
+            $answer = trim(
+                $clean_lines[$i + 1]
+            );
+
+
+            if (
+                $question === '' ||
+                $answer === ''
+            ) {
+                continue;
+            }
+
+
+            $faq_items[] = array(
+                'question' => $question,
+                'answer'   => $answer,
+            );
+        }
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Safety Check
+    |--------------------------------------------------------------------------
+    */
+
+    if (empty($faq_items)) {
         return;
     }
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Frontend FAQ
+    |--------------------------------------------------------------------------
+    */
+
 ?>
-
-    <style>
-        .nea-ai-faq {
-            margin-top: 40px;
-            margin-bottom: 30px;
-        }
-
-        .nea-ai-faq-title {
-            margin-bottom: 25px;
-        }
-
-        .nea-ai-faq-item {
-            margin-bottom: 25px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #e5e5e5;
-        }
-
-        .nea-ai-faq-item:last-child {
-            margin-bottom: 0;
-            border-bottom: 0;
-        }
-
-        .nea-ai-faq-question {
-            margin-bottom: 10px;
-            line-height: 1.6;
-        }
-
-        .nea-ai-faq-answer {
-            line-height: 1.7;
-        }
-    </style>
-
 
     <section class="nea-ai-faq">
 
-        <h2 class="nea-ai-faq-title">
-            Frequently Asked Questions
-        </h2>
+        <div class="nea-ai-faq-header">
+
+            <h2 class="nea-ai-faq-title">
+                Frequently Asked Questions
+            </h2>
+
+        </div>
 
 
         <div class="nea-ai-faq-list">
 
-            <?php foreach ($faq_items as $faq_item) : ?>
+            <?php foreach ($faq_items as $item) : ?>
 
                 <article class="nea-ai-faq-item">
 
+                    <!-- QUESTION -->
+
                     <div class="nea-ai-faq-question">
 
-                        <strong>
-                            Question:
-                        </strong>
+                        <span class="nea-ai-faq-label">
+                            Q
+                        </span>
 
-                        <?php
-                        echo esc_html(
-                            $faq_item['question']
-                        );
-                        ?>
+                        <div class="nea-ai-faq-question-text">
+
+                            <?php
+                            echo esc_html(
+                                $item['question']
+                            );
+                            ?>
+
+                        </div>
 
                     </div>
 
 
+                    <!-- ANSWER -->
+
                     <div class="nea-ai-faq-answer">
 
-                        <strong>
-                            Answer:
-                        </strong>
+                        <span class="nea-ai-faq-label nea-ai-faq-answer-label">
+                            A
+                        </span>
 
-                        <?php
-                        echo esc_html(
-                            $faq_item['answer']
-                        );
-                        ?>
+                        <div class="nea-ai-faq-answer-text">
+
+                            <?php
+                            echo wp_kses_post(
+                                wpautop(
+                                    $item['answer']
+                                )
+                            );
+                            ?>
+
+                        </div>
 
                     </div>
 
@@ -258,6 +389,173 @@ function nea_render_frontend_ai_faq()
         </div>
 
     </section>
+
+
+    <style>
+        /*
+|--------------------------------------------------------------------------
+| FAQ Container
+|--------------------------------------------------------------------------
+*/
+
+        .nea-ai-faq {
+            margin-top: 40px;
+            padding-top: 32px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+
+        /*
+|--------------------------------------------------------------------------
+| FAQ Title
+|--------------------------------------------------------------------------
+*/
+
+        .nea-ai-faq-title {
+            margin: 0 0 24px;
+            font-size: 28px;
+            line-height: 1.3;
+            font-weight: 600;
+        }
+
+
+        /*
+|--------------------------------------------------------------------------
+| FAQ List
+|--------------------------------------------------------------------------
+*/
+
+        .nea-ai-faq-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+
+        /*
+|--------------------------------------------------------------------------
+| FAQ Item
+|--------------------------------------------------------------------------
+*/
+
+        .nea-ai-faq-item {
+            padding: 20px 22px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            background: #fff;
+        }
+
+
+        /*
+|--------------------------------------------------------------------------
+| Question
+|--------------------------------------------------------------------------
+*/
+
+        .nea-ai-faq-question {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+
+        .nea-ai-faq-question-text {
+            flex: 1;
+            font-size: 17px;
+            line-height: 1.5;
+            font-weight: 600;
+        }
+
+
+        /*
+|--------------------------------------------------------------------------
+| Answer
+|--------------------------------------------------------------------------
+*/
+
+        .nea-ai-faq-answer {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+
+        .nea-ai-faq-answer-text {
+            flex: 1;
+            font-size: 16px;
+            line-height: 1.7;
+            color: #555;
+        }
+
+
+        .nea-ai-faq-answer-text p {
+            margin: 0 0 10px;
+        }
+
+
+        .nea-ai-faq-answer-text p:last-child {
+            margin-bottom: 0;
+        }
+
+
+        /*
+|--------------------------------------------------------------------------
+| Q / A Label
+|--------------------------------------------------------------------------
+*/
+
+        .nea-ai-faq-label {
+            flex: 0 0 auto;
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: #f3f4f6;
+            font-size: 13px;
+            line-height: 1;
+            font-weight: 700;
+        }
+
+
+        .nea-ai-faq-answer-label {
+            background: #f9fafb;
+        }
+
+
+        /*
+|--------------------------------------------------------------------------
+| Mobile
+|--------------------------------------------------------------------------
+*/
+
+        @media (max-width: 600px) {
+
+            .nea-ai-faq {
+                margin-top: 30px;
+                padding-top: 24px;
+            }
+
+            .nea-ai-faq-title {
+                font-size: 24px;
+            }
+
+            .nea-ai-faq-item {
+                padding: 16px;
+            }
+
+            .nea-ai-faq-question-text {
+                font-size: 16px;
+            }
+
+            .nea-ai-faq-answer-text {
+                font-size: 15px;
+            }
+
+        }
+    </style>
 
 <?php
 }
